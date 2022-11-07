@@ -1,4 +1,13 @@
-## 模型接口服务实现
+## ITLubber、酱的WEB应用初始化框架
+
+
+本仓库集成tornado、celery、apscheduler、pymysql等框架，简单实用。
+
+> 个人博客: [`https://itlubber.art/`](https://itlubber.art/)
+
+
+### 在线API文档管理
+
 
 > 在线API文档 : https://www.apifox.cn/apidoc/shared-fe7aebf8-8c1b-4704-8a55-830afac0ce3e
 
