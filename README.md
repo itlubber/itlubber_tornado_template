@@ -1,41 +1,66 @@
 ## 模型接口服务实现
 
-> postman接口在线文档 : http://127.0.0.1
+> 在线API文档 : https://www.apifox.cn/apidoc/shared-fe7aebf8-8c1b-4704-8a55-830afac0ce3e
+
 
 ### 项目结构
+
+
 ```bash
-tornado_template-main
-├── readme.md                           项目说明文件
-├── server.py                           服务启动入口文件
-├── config.py                           项目配置文件
-├── crontab.py                          定时任务配置文件
-├── clear_cache.sh                      清理缓存文件 __pycache__ & ipynb_checkpoints
-├── docker                              docker相关文件
-│   ├── Dockerfile                          - 打包文件
-│   ├── build.sh                            - 执行打包的脚本
-│   ├── requirements.txt                    - python 相关依赖
-│   ├── install_packages.sh                 - 安装 python 依赖环境的脚本
-│   └── run.sh                              - docker启动脚本
-├── handlers                            接口服务文件夹
-│   ├── BaseHandler.py                      - 接口的基类，所有接口类类继承该类
-│   └── EventImportance.py                  - api测试样例
-├── models                              数据库相关文件存放位置
-│   ├── conn_db.py                          - 数据库连接池实现
-│   └── features_extraction.py              - 数据库相关操作
-├── utils                               tornado相关的公共方法
-│   ├── constants.py                        - 常量配置（过期时间等）
-│   ├── logger.py                           - 全局日志模块
-│   ├── methods.py                          - 公共方法（函数执行计时器）
-│   ├── response_code.py                    - 统一定义好的异常状态码及错误类型
-│   └── urls.py                             - 路由配置入口文件
-└── static                              静态文件存储位置（主页）
-    ├── favicon.ico
-    ├── index.html
-    └── style.css
+tree
+
+.
+├── LICENSE                                     # MIT LICENSE
+├── README.md                                   # 使用说明文档
+├── server.py                                   # 服务启动脚本
+├── config.py                                   # 相关配置文件
+├── celery_tasks.py                             # celery 异步任务启动脚本
+├── crontab.py                                  # 定时任务配置文件
+├── clear_cache.sh                              # 清除缓存文件脚本
+├── dbutils                                     # 数据库连接池
+│   ├── __init__.py
+│   ├── hive_connect_pool.py                    # impala & hive 数据库连接池
+│   ├── mysql_connect_pool.py                   # mysql 数据库连接池
+│   ├── persistent_db.py
+│   ├── pooled_db.py
+│   └── steady_db.py
+├── docker                                      # docker 部署相关文件
+│   ├── Dockerfile                              # docker 构建文件
+│   ├── build.sh                                # docker build 脚本
+│   ├── install_packages.sh                     # 安装依赖包脚本
+│   ├── packages                                # 依赖文件
+│   │   └── tornado-celery-0.3.5.tar.gz
+│   ├── requirements.txt                        # python 依赖
+│   └── run.sh                                  # docker 启动脚本
+├── handlers                                    # 接口具体逻辑
+│   ├── BaseHandler.py                          # 接口的基类，所有接口类类继承该类
+│   ├── CeleryHandler.py                        # 异步任务相关接口实现
+│   ├── EventImportance.py                      # 普通任务相关接口实现
+│   └── __init__.py
+├── logs                                        # 日志文件
+│   └── info.log
+├── models                                      # 数据库相关操作和其他模型相关的脚本
+│   ├── __init__.py
+│   ├── conn_db.py                              # 数据库连接池实例化
+│   └── features_extraction.py                  # 具体任务逻辑
+├── static                                      # 静态文件，访问 / 时返回网页
+│   ├── favicon.ico
+│   ├── index.html
+│   └── style.css
+└── utils                                       # 公共方法
+    ├── __init__.py
+    ├── logger.py                               # 日志
+    ├── methods.py                              # 公用方法
+    ├── response_code.py                        # 返回状态码
+    └── urls.py                                 # 路由配置
+
+8 directories, 35 files
 ```
 
 
 ### 相关命令
+
+
 ```bash
 # docker 相关文件中注意修改文件夹位置
 # ----------------------------------------------------------------------------------
@@ -56,7 +81,28 @@ docker logs -f YOUR_DOCKER_CONTAINER_ID
 ```
 
 
+### python 离线裸机部署
+
+
+```bash
+# 原生方法
+pip freeze > requirements.txt
+# 优化方法
+# 安装依赖
+pip install pipreqs
+# 在当前目录生成
+pipreqs . --encoding=utf8 --force
+# 在当前环境下安装依赖
+ pip install -r requirements.txt
+# 下载当前依赖环境的离线包
+pip download -d python_lib/ -r requirements.txt -i http://pypi.douban.com/simple --trusted-host pypi.douban.com
+# 离线安装依赖包 python_lib 为离线包文件的位置
+pip install --no-index --find-links=python_lib -r requirements.txt
+```
+
+
 ### tornado log 自定义
+
 
 ```python
 import logging
@@ -71,6 +117,8 @@ access_log.addHandler(logHandler)
 tornado.options.parse_command_line()
 [i.setFormatter(formatter) for i in logging.getLogger().handlers]
 ```
+
+
 > 原理：tornado.options.parse_command_line()会自动调用enable_pretty_logging方法，该方法默认会创建一个root logger，因为父子关系的存在，tornado所有其他logger事件都会触发root logger，所以修改root logger的格式就能修改tornado所有日志的格式。
 
 > 原理：tornado本身有三种类型的日志流:access_log, gen_log, app_log。为这些logger添加自定义的handler即可，注意access_log.propagate = False这段代码必不可少，要不然会触发默认的根logger导致重复日志

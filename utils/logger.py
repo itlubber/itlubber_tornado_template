@@ -32,7 +32,7 @@ def get_logger_lubber(log_file, log_format, log_level="info"):
 
 
 def get_logger_tornado(log_name="tornado.general"):
-    if not os.path.exists(config.log_file):
+    if not os.path.exists(os.path.dirname(config.log_file)):
         os.makedirs(os.path.dirname(config.log_file))
     return logging.getLogger(log_name)
 
