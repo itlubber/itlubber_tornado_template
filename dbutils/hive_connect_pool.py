@@ -6,6 +6,10 @@
 """
 
 import traceback
+import pandas as pd
+from sqlalchemy import create_engine
+from sqlalchemy.dialects.sqlite import INTEGER, VARCHAR, FLOAT
+
 import impala.dbapi as creater
 from impala.util import as_pandas
 from contextlib import contextmanager
@@ -57,7 +61,7 @@ class HiveConnectPool:
                     else:
                         return {group_name: group.drop(columns=[index]).to_dict(orient="record") for group_name, group in _data.groupby(index)}
 
-            if result == "df":
+            if result == "data":
                 return as_pandas(_hive_connect_query.cursor)
             elif result == "record":
                 column_names = [col[0] for col in _hive_connect_query.cursor.description]
@@ -77,3 +81,23 @@ class HiveConnectPool:
                 _hive_connect_query.conn.rollback()
                 traceback.print_exc()
                 raise Exception("sql语句执行失败")
+    
+    @staticmethod
+    def data_type_dict(data: pd.DataFrame):
+        type_dict = {}
+        for col in data.columns:
+            tp = data[col].dtype
+            if 'object' in str(tp):
+                type_dict[col] = VARCHAR()
+                data[col] = data[col].apply(lambda x: str(x))
+            elif 'int' in str(tp):
+                type_dict[col] = INTEGER()
+            elif 'float' in str(tp):
+                type_dict[col] = FLOAT()
+            else:
+                type_dict[col] = VARCHAR()
+        return type_dict
+
+    def to_impala(self, data: pd.DataFrame, table_name="features_tables", if_exists="replace", index=False, chunksize=1024, *args, **kwargs):
+        engine = create_engine(*args, **kwargs)
+        data.to_sql(table_name, con=engine, if_exists=if_exists, index=index, dtype=self.data_type_dict(data), chunksize=chunksize)
