@@ -34,7 +34,21 @@ class HiveConnectPoolQuery:
 class HiveConnectPool:
 
     def __init__(self, **kwargs):
+        self._kwargs = kwargs
         self._pool = PooledDB(creater, **kwargs)
+        
+    def register_connect(self):
+        _conn = self._pool.connection()
+        _cursor = _conn.cursor()
+        return HiveConnectPoolQuery(_conn, _cursor)
+
+    @staticmethod
+    def logout_connect(_query: HiveConnectPoolQuery):
+        try:
+            _query.close()
+        except Exception as e:
+            traceback.print_exc()
+            raise Exception("放回数据库连接池失败。")
 
     @contextmanager
     def register_hive_connect_query(self):
@@ -98,6 +112,6 @@ class HiveConnectPool:
                 type_dict[col] = String()
         return type_dict
 
-    def to_impala(self, data: pd.DataFrame, table_name="features_tables", if_exists="replace", index=False, chunksize=1024, *args, **kwargs):
+    def to_impala(self, data: pd.DataFrame, table_name="features_tables", if_exists="replace", index=False, chunksize=1024, method="multi", *args, **kwargs):
         engine = create_engine(*args, **kwargs)
         data.to_sql(table_name, con=engine, if_exists=if_exists, index=index, dtype=self.data_type_dict(data), chunksize=chunksize)
