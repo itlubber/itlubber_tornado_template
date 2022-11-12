@@ -8,7 +8,7 @@
 import traceback
 import pandas as pd
 from sqlalchemy import create_engine
-from sqlalchemy.dialects.sqlite import INTEGER, VARCHAR, FLOAT
+from sqlalchemy.types import INTEGER, VARCHAR, FLOAT, String
 
 import impala.dbapi as creater
 from impala.util import as_pandas
@@ -87,15 +87,15 @@ class HiveConnectPool:
         type_dict = {}
         for col in data.columns:
             tp = data[col].dtype
-            if 'object' in str(tp):
-                type_dict[col] = VARCHAR()
+            if 'object' in str(tp) or "category" in str(tp):
+                type_dict[col] = String()
                 data[col] = data[col].apply(lambda x: str(x))
             elif 'int' in str(tp):
                 type_dict[col] = INTEGER()
             elif 'float' in str(tp):
                 type_dict[col] = FLOAT()
             else:
-                type_dict[col] = VARCHAR()
+                type_dict[col] = String()
         return type_dict
 
     def to_impala(self, data: pd.DataFrame, table_name="features_tables", if_exists="replace", index=False, chunksize=1024, *args, **kwargs):
